@@ -7826,7 +7826,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
-  console.log("🎨 Restoring beautiful swipe system with cart loading");
+  console.log("🎨 Restoring beautiful swipe system with cart loading and navigation updates");
   
   const SWIPE_THRESHOLD = 24;
   const EDGE_OFFSET = 20;
@@ -7902,6 +7902,48 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Находим видимую страницу
     return pages.find(page => page && page.style.display !== "none") || pages[0];
+  }
+
+  // Функция для обновления навигации в нижнем меню
+  function updateNavigationIndicator() {
+    const currentPage = getCurrentPage();
+    if (!currentPage) return;
+    
+    // Соответствие между страницами и элементами навигации
+    const pageToNavMap = {
+      'main-page': 'treasure-nav-item',
+      'cabinet-page': 'cabinet-nav-item', 
+      'storage-page': 'storage-nav-item'
+    };
+    
+    const navId = pageToNavMap[currentPage.id];
+    if (!navId) return;
+    
+    // Находим элемент навигации
+    const activeNav = document.getElementById(navId);
+    if (!activeNav) return;
+    
+    // Убираем активное состояние со всех элементов навигации
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+      item.classList.remove('active');
+      // Удаляем индикатор активности если есть
+      const indicator = item.querySelector('.active-indicator');
+      if (indicator) indicator.remove();
+    });
+    
+    // Добавляем активное состояние текущему элементу
+    activeNav.classList.add('active');
+    
+    // Создаем индикатор активности (если его нет)
+    let indicator = activeNav.querySelector('.active-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'active-indicator';
+      activeNav.appendChild(indicator);
+    }
+    
+    console.log(`📍 Navigation updated to: ${currentPage.id}`);
   }
 
   // Функция для загрузки корзины при открытии склада
@@ -7993,6 +8035,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (nextPage.id === "storage-page") {
         loadStorageCart();
       }
+      
+      // ДОБАВЛЕНО: Обновляем навигацию после успешного свайпа
+      setTimeout(updateNavigationIndicator, 50);
       
       activePage = nextPage;
       nextPage = null;
@@ -8144,8 +8189,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }, { passive: true });
 
-  // Инициализация
-  console.log("✅ Beautiful swipe system restored with cart loading!");
+  // Инициализация - обновляем навигацию при загрузке
+  setTimeout(() => {
+    updateNavigationIndicator();
+    console.log("✅ Navigation initialized");
+  }, 100);
+
+  console.log("✅ Beautiful swipe system restored with navigation updates!");
 
 })();
 </script>
