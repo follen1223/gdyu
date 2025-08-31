@@ -7826,7 +7826,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
-  console.log("🎨 Restoring beautiful swipe system with cart loading and navigation updates");
+  console.log("📱 Optimizing for iOS with beautiful swipe preservation");
   
   const SWIPE_THRESHOLD = 24;
   const EDGE_OFFSET = 20;
@@ -7840,7 +7840,10 @@ document.addEventListener('DOMContentLoaded', function() {
   let horizontalDetected = false;
   let animationFrameId = null;
 
-  // Ваши оригинальные красивые стили
+  // Определяем iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  // Специальные стили для iOS
   const swipeStyles = `
     body, .page-container { 
       touch-action: pan-y pinch-zoom; 
@@ -7848,13 +7851,16 @@ document.addEventListener('DOMContentLoaded', function() {
       -webkit-touch-callout: none;
       -webkit-text-size-adjust: none;
       -webkit-tap-highlight-color: transparent;
+      ${isIOS ? 'position: fixed; width: 100%; height: 100%; overflow: hidden;' : ''}
     }
+    
     .page-container { 
       position: relative; 
       width: 100%; 
       height: 100%; 
       overflow: hidden; 
     }
+    
     .swipeable-page { 
       position: absolute; 
       top:0; 
@@ -7864,15 +7870,27 @@ document.addEventListener('DOMContentLoaded', function() {
       will-change: transform; 
       transition: transform 0.25s ease-out; 
       z-index: 10;
+      ${isIOS ? '-webkit-overflow-scrolling: touch;' : ''}
     }
+    
     .no-transition { 
       transition: none !important; 
     }
+    
     .pe-none { 
       pointer-events: none !important; 
     }
+    
     .swipe-in-progress {
       overflow: hidden !important;
+      ${isIOS ? 'position: fixed; width: 100%; height: 100%;' : ''}
+    }
+    
+    /* Предотвращение масштабирования на iOS */
+    .prevent-zoom {
+      touch-action: pan-y;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
   `;
   
@@ -7880,7 +7898,7 @@ document.addEventListener('DOMContentLoaded', function() {
   styleEl.textContent = swipeStyles;
   document.head.appendChild(styleEl);
 
-  // Устанавливаем viewport для запрета масштабирования
+  // Устанавливаем viewport для iOS
   function setViewport() {
     let viewport = document.querySelector('meta[name="viewport"]');
     if (!viewport) {
@@ -7888,10 +7906,46 @@ document.addEventListener('DOMContentLoaded', function() {
       viewport.name = 'viewport';
       document.head.appendChild(viewport);
     }
-    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    
+    if (isIOS) {
+      // Жесткий запрет масштабирования для iOS
+      viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+    } else {
+      viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    }
   }
 
   setViewport();
+
+  // Блокировка жестов масштабирования на iOS
+  function preventZoom(event) {
+    if (event.touches.length > 1) {
+      event.preventDefault();
+    }
+  }
+
+  function preventDoubleTapZoom(event) {
+    const currentTime = new Date().getTime();
+    const timeSinceLastTap = currentTime - (preventDoubleTapZoom.lastTap || 0);
+    
+    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      event.preventDefault();
+    }
+    
+    preventDoubleTapZoom.lastTap = currentTime;
+  }
+
+  // Добавляем обработчики для iOS
+  if (isIOS) {
+    document.addEventListener('touchmove', preventZoom, { passive: false });
+    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('gesturechange', (e) => e.preventDefault());
+    document.addEventListener('gestureend', (e) => e.preventDefault());
+    
+    // Добавляем класс для предотвращения масштабирования
+    document.body.classList.add('prevent-zoom');
+  }
 
   function getCurrentPage() {
     const pages = [
@@ -7909,7 +7963,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentPage = getCurrentPage();
     if (!currentPage) return;
     
-    // Соответствие между страницами и элементами навигации
     const pageToNavMap = {
       'main-page': 'treasure-nav-item',
       'cabinet-page': 'cabinet-nav-item', 
@@ -7919,56 +7972,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const navId = pageToNavMap[currentPage.id];
     if (!navId) return;
     
-    // Находим элемент навигации
     const activeNav = document.getElementById(navId);
     if (!activeNav) return;
     
-    // Убираем активное состояние со всех элементов навигации
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
       item.classList.remove('active');
-      // Удаляем индикатор активности если есть
       const indicator = item.querySelector('.active-indicator');
       if (indicator) indicator.remove();
     });
     
-    // Добавляем активное состояние текущему элементу
     activeNav.classList.add('active');
     
-    // Создаем индикатор активности (если его нет)
     let indicator = activeNav.querySelector('.active-indicator');
     if (!indicator) {
       indicator = document.createElement('div');
       indicator.className = 'active-indicator';
       activeNav.appendChild(indicator);
     }
-    
-    console.log(`📍 Navigation updated to: ${currentPage.id}`);
   }
 
   // Функция для загрузки корзины при открытии склада
   function loadStorageCart() {
     console.log("🛒 Loading storage cart after swipe...");
     
-    // Вызываем функции с задержкой чтобы анимация завершилась
     setTimeout(() => {
-      if (typeof renderStorageCart === 'function') {
-        renderStorageCart();
-        console.log("✅ Storage cart rendered");
-      }
-      
-      if (typeof initStoragePage === 'function') {
-        initStoragePage();
-        console.log("✅ Storage page initialized");
-      }
-      
-      if (typeof updateStorageBadge === 'function') {
-        updateStorageBadge();
-      }
-      
-      if (typeof updateCartIconCount === 'function') {
-        updateCartIconCount();
-      }
+      if (typeof renderStorageCart === 'function') renderStorageCart();
+      if (typeof initStoragePage === 'function') initStoragePage();
+      if (typeof updateStorageBadge === 'function') updateStorageBadge();
+      if (typeof updateCartIconCount === 'function') updateCartIconCount();
     }, ANIM_MS + 50);
   }
 
@@ -7978,7 +8010,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const cab = document.getElementById("cabinet-page");
     const stor = document.getElementById("storage-page");
 
-    // Очищаем предыдущие состояния
     if (nextPage) {
       nextPage.style.display = "none";
       nextPage.classList.remove("swipeable-page", "no-transition", "pe-none");
@@ -7986,12 +8017,10 @@ document.addEventListener('DOMContentLoaded', function() {
       nextPage = null;
     }
 
-    // Запрещаем свайпы во время анимаций или если активная страница не найдена
     if (!activePage || activePage.classList.contains("pe-none")) {
       return false;
     }
 
-    // Правильная логика навигации
     if (activePage.id === "main-page") {
       nextPage = (direction === "left") ? cab : stor;
     } 
@@ -8004,7 +8033,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!nextPage) return false;
 
-    // Запрещаем взаимодействие с элементами во время свайпа
     document.body.classList.add('swipe-in-progress');
 
     nextPage.style.display = "block";
@@ -8031,12 +8059,10 @@ document.addEventListener('DOMContentLoaded', function() {
       nextPage.style.transform = "";
       nextPage.style.zIndex = "";
       
-      // ДОБАВЛЕНО: Загружаем корзину при переходе на склад
       if (nextPage.id === "storage-page") {
         loadStorageCart();
       }
       
-      // ДОБАВЛЕНО: Обновляем навигацию после успешного свайпа
       setTimeout(updateNavigationIndicator, 50);
       
       activePage = nextPage;
@@ -8112,7 +8138,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Ограничиваем перемещение
     const maxOffset = window.innerWidth * 0.8;
     dx = Math.max(-maxOffset, Math.min(maxOffset, dx));
     
@@ -8132,7 +8157,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener("touchstart", (e) => {
     if (isSwiping) return;
     
-    // Запрещаем свайпы на интерактивных элементах
     if (e.target.closest(".no-swipe, input, textarea, select, button, a, .delete-btn, .payment-btn")) {
       return;
     }
@@ -8189,13 +8213,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }, { passive: true });
 
-  // Инициализация - обновляем навигацию при загрузке
+  // Инициализация
   setTimeout(() => {
     updateNavigationIndicator();
-    console.log("✅ Navigation initialized");
+    console.log("✅ iOS optimized swipe system ready!");
   }, 100);
-
-  console.log("✅ Beautiful swipe system restored with navigation updates!");
 
 })();
 </script>
