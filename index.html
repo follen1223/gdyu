@@ -7826,12 +7826,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
-  console.log("📱 Creating perfect iOS swipe animations");
+  console.log("📱 Creating isolated swipe system with cart and navigation");
   
   const SWIPE_THRESHOLD = 20;
   const MIN_SWIPE_DISTANCE = 60;
-  const ANIM_MS = 400; // Увеличил для большей плавности
-  const BOUNCE_FACTOR = 0.6; // Коэффициент отскока для iOS
+  const ANIM_MS = 400;
+  const BOUNCE_FACTOR = 0.6;
 
   let startX = 0, startY = 0;
   let currentX = 0, currentY = 0;
@@ -7840,38 +7840,30 @@ document.addEventListener('DOMContentLoaded', function() {
   let currentPage = null;
   let nextPage = null;
 
-  // iOS detection
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  // Идеальные стили для iOS плавности
+  // Минимальные стили только для анимации
   const swipeStyles = `
-    * {
-      -webkit-tap-highlight-color: transparent;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-    }
-    
-    body {
-      overflow: hidden;
-      position: fixed;
-      width: 100%;
-      height: 100%;
-      ${isIOS ? '-webkit-overflow-scrolling: touch;' : ''}
-    }
-    
-    .swipe-page {
+    .swipe-container {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    
+    .swipe-page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       transition: transform ${ANIM_MS}ms cubic-bezier(0.23, 1, 0.32, 1);
-      z-index: 100;
       ${isIOS ? `
-        -webkit-overflow-scrolling: touch;
         -webkit-transform: translate3d(0,0,0);
         backface-visibility: hidden;
-        perspective: 1000px;
       ` : ''}
     }
     
@@ -7880,14 +7872,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     .swipe-active {
-      z-index: 101 !important;
+      z-index: 2;
     }
     
-    /* iOS-like bounce effect */
-    @supports (-webkit-touch-callout: none) {
-      .swipe-page {
-        transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
-      }
+    .swipe-hidden {
+      opacity: 0;
+      pointer-events: none;
     }
   `;
 
@@ -7895,38 +7885,107 @@ document.addEventListener('DOMContentLoaded', function() {
   styleEl.textContent = swipeStyles;
   document.head.appendChild(styleEl);
 
-  // Устанавливаем viewport для iOS
-  function setupViewport() {
-    let viewport = document.querySelector('meta[name="viewport"]');
-    if (!viewport) {
-      viewport = document.createElement('meta');
-      viewport.name = 'viewport';
-      document.head.appendChild(viewport);
+  // ===== ФУНКЦИИ ДЛЯ КОРЗИНЫ =====
+  function loadStorageCart() {
+    console.log("🛒 Loading storage cart...");
+    
+    // Проверяем и вызываем функции корзины если они существуют
+    try {
+      if (typeof renderStorageCart === 'function') {
+        setTimeout(() => {
+          renderStorageCart();
+          console.log("✅ Storage cart rendered");
+        }, 100);
+      }
+      
+      if (typeof initStoragePage === 'function') {
+        setTimeout(() => {
+          initStoragePage();
+          console.log("✅ Storage page initialized");
+        }, 150);
+      }
+      
+      if (typeof updateStorageBadge === 'function') {
+        setTimeout(() => {
+          updateStorageBadge();
+          console.log("✅ Storage badge updated");
+        }, 200);
+      }
+      
+      if (typeof updateCartIconCount === 'function') {
+        setTimeout(() => {
+          updateCartIconCount();
+          console.log("✅ Cart icon count updated");
+        }, 250);
+      }
+    } catch (error) {
+      console.log("⚠️ Cart functions not available:", error);
     }
-    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
   }
 
-  // Блокировка масштабирования на iOS
-  function setupTouchHandlers() {
-    if (!isIOS) return;
-
-    document.addEventListener('touchstart', function(e) {
-      if (e.touches.length > 1) {
-        e.preventDefault();
+  // ===== ФУНКЦИИ ДЛЯ НАВИГАЦИИ =====
+  function updateNavigationIndicator() {
+    try {
+      const currentPage = getCurrentPage();
+      if (!currentPage) return;
+      
+      const pageToNavMap = {
+        'main-page': 'treasure-nav-item',
+        'cabinet-page': 'cabinet-nav-item', 
+        'storage-page': 'storage-nav-item'
+      };
+      
+      const navId = pageToNavMap[currentPage.id];
+      if (!navId) return;
+      
+      // Убираем активное состояние со всех элементов
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        const indicator = item.querySelector('.active-indicator');
+        if (indicator) indicator.remove();
+      });
+      
+      // Добавляем активное состояние текущему элементу
+      const activeNav = document.getElementById(navId);
+      if (activeNav) {
+        activeNav.classList.add('active');
+        const indicator = document.createElement('div');
+        indicator.className = 'active-indicator';
+        activeNav.appendChild(indicator);
       }
-    }, { passive: false });
+      
+      console.log(`📍 Navigation updated to: ${currentPage.id}`);
+    } catch (error) {
+      console.log("⚠️ Navigation update error:", error);
+    }
+  }
 
-    document.addEventListener('gesturestart', function(e) {
-      e.preventDefault();
-    });
+  // ===== ОСНОВНЫЕ ФУНКЦИИ СВАЙПОВ =====
+  function createSwipeContainer() {
+    let container = document.querySelector('.swipe-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'swipe-container';
+      document.body.appendChild(container);
+    }
+    return container;
+  }
 
-    document.addEventListener('gesturechange', function(e) {
-      e.preventDefault();
+  function createPageClone(pageId) {
+    const original = document.getElementById(pageId);
+    if (!original) return null;
+    
+    const clone = original.cloneNode(true);
+    clone.id = `${pageId}-swipe-clone`;
+    clone.className = `swipe-page ${original.className}`;
+    
+    // Убираем все обработчики и интерактивные элементы
+    clone.querySelectorAll('button, a, input, [onclick]').forEach(el => {
+      el.style.pointerEvents = 'none';
     });
-
-    document.addEventListener('gestureend', function(e) {
-      e.preventDefault();
-    });
+    
+    return clone;
   }
 
   function getCurrentPage() {
@@ -7940,43 +7999,14 @@ document.addEventListener('DOMContentLoaded', function() {
     return document.getElementById('main-page');
   }
 
-  function updateNavigation() {
-    const currentPage = getCurrentPage();
-    if (!currentPage) return;
-
-    const navMap = {
-      'main-page': 'treasure-nav-item',
-      'cabinet-page': 'cabinet-nav-item', 
-      'storage-page': 'storage-nav-item'
-    };
-
-    const navId = navMap[currentPage.id];
-    if (!navId) return;
-
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => item.classList.remove('active'));
-
-    const activeNav = document.getElementById(navId);
-    if (activeNav) {
-      activeNav.classList.add('active');
-    }
-  }
-
-  function loadStorageCart() {
-    if (typeof renderStorageCart === 'function') {
-      setTimeout(renderStorageCart, 100);
-    }
-  }
-
-  function showPage(pageId) {
+  function showRealPage(pageId) {
     const pages = ['main-page', 'cabinet-page', 'storage-page'];
     
-    // Скрываем все страницы
+    // Скрываем все настоящие страницы
     pages.forEach(id => {
       const page = document.getElementById(id);
       if (page) {
         page.style.display = 'none';
-        page.classList.remove('swipe-active');
       }
     });
     
@@ -7984,16 +8014,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const targetPage = document.getElementById(pageId);
     if (targetPage) {
       targetPage.style.display = 'block';
-      targetPage.classList.add('swipe-active');
       
-      // Загружаем корзину если это склад
+      // Загружаем корзину если открыли склад
       if (pageId === 'storage-page') {
         loadStorageCart();
       }
     }
     
-    updateNavigation();
-    triggerVibration();
+    // Обновляем навигацию
+    updateNavigationIndicator();
+    
+    // Вибрация
+    if (typeof triggerVibration === 'function') {
+      triggerVibration();
+    }
+    
+    // Очищаем клоны после анимации
+    setTimeout(cleanupClones, ANIM_MS + 100);
+  }
+
+  function cleanupClones() {
+    const container = document.querySelector('.swipe-container');
+    if (container) {
+      container.innerHTML = '';
+    }
   }
 
   function getNextPageId(currentPageId, direction) {
@@ -8006,15 +8050,12 @@ document.addEventListener('DOMContentLoaded', function() {
     return pageMap[currentPageId]?.[direction];
   }
 
-  // Плавная iOS-анимация свайпа
   function animateSwipe(offset, direction) {
     if (!currentPage) return;
 
     const maxOffset = window.innerWidth;
-    const progress = Math.abs(offset) / maxOffset;
-    
-    // iOS-like bounce effect
     let bounceOffset = offset;
+    
     if (Math.abs(offset) > maxOffset * 0.8) {
       const overflow = Math.abs(offset) - (maxOffset * 0.8);
       bounceOffset = offset > 0 ? 
@@ -8035,10 +8076,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function completeSwipe(direction) {
     if (!currentPage) return;
 
-    const nextPageId = getNextPageId(currentPage.id, direction);
+    const nextPageId = getNextPageId(currentPage.id.replace('-swipe-clone', ''), direction);
     if (!nextPageId) return;
 
-    // Плавная анимация завершения
+    // Анимация завершения
     currentPage.style.transition = `transform ${ANIM_MS}ms cubic-bezier(0.23, 1, 0.32, 1)`;
     
     if (nextPage) {
@@ -8049,22 +8090,13 @@ document.addEventListener('DOMContentLoaded', function() {
     currentPage.style.transform = direction === 'right' ? 
       'translateX(100%)' : 'translateX(-100%)';
 
+    // Переключаем на настоящую страницу
     setTimeout(() => {
-      showPage(nextPageId);
-      
-      // Сбрасываем трансформации
-      if (currentPage) {
-        currentPage.style.transform = '';
-        currentPage.style.transition = '';
-      }
-      if (nextPage) {
-        nextPage.style.transform = '';
-        nextPage.style.transition = '';
-      }
+      showRealPage(nextPageId);
     }, ANIM_MS);
   }
 
-  // Обработчики touch событий
+  // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
   function handleTouchStart(e) {
     if (isSwiping || e.touches.length !== 1) return;
     if (e.target.closest('input, textarea, select, button, a, .no-swipe')) return;
@@ -8075,10 +8107,19 @@ document.addEventListener('DOMContentLoaded', function() {
     currentX = startX;
     currentY = startY;
     
-    currentPage = getCurrentPage();
-    if (!currentPage) return;
+    const realPage = getCurrentPage();
+    if (!realPage) return;
 
-    currentPage.classList.add('swipe-no-transition');
+    // Создаем клоны для анимации
+    const container = createSwipeContainer();
+    const currentClone = createPageClone(realPage.id);
+    
+    if (currentClone) {
+      container.appendChild(currentClone);
+      currentPage = currentClone;
+      currentPage.classList.add('swipe-no-transition');
+    }
+    
     isSwiping = true;
     swipeDirection = null;
   }
@@ -8093,17 +8134,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const dx = currentX - startX;
     const dy = currentY - startY;
 
-    // Определяем направление
     if (!swipeDirection && Math.abs(dx) > SWIPE_THRESHOLD) {
       swipeDirection = dx > 0 ? 'right' : 'left';
       
-      // Подготавливаем следующую страницу
-      const nextPageId = getNextPageId(currentPage.id, swipeDirection);
+      const nextPageId = getNextPageId(currentPage.id.replace('-swipe-clone', ''), swipeDirection);
       if (nextPageId) {
-        nextPage = document.getElementById(nextPageId);
-        if (nextPage) {
-          nextPage.style.display = 'block';
-          nextPage.classList.add('swipe-active');
+        const nextClone = createPageClone(nextPageId);
+        if (nextClone) {
+          const container = document.querySelector('.swipe-container');
+          container.appendChild(nextClone);
+          nextPage = nextClone;
           nextPage.classList.add('swipe-no-transition');
           nextPage.style.transform = swipeDirection === 'right' ? 
             'translateX(-100%)' : 'translateX(100%)';
@@ -8125,7 +8165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (swipeDirection && Math.abs(dx) > MIN_SWIPE_DISTANCE) {
       completeSwipe(swipeDirection);
     } else {
-      // Возвращаем на место с анимацией
+      // Возвращаем на место
       currentPage.style.transition = `transform ${ANIM_MS}ms cubic-bezier(0.23, 1, 0.32, 1)`;
       currentPage.style.transform = '';
       
@@ -8134,41 +8174,27 @@ document.addEventListener('DOMContentLoaded', function() {
         nextPage.style.transform = swipeDirection === 'right' ? 
           'translateX(-100%)' : 'translateX(100%)';
         
-        setTimeout(() => {
-          if (nextPage) {
-            nextPage.style.display = 'none';
-            nextPage.style.transform = '';
-          }
-        }, ANIM_MS);
+        setTimeout(cleanupClones, ANIM_MS);
       }
     }
 
-    // Сброс
-    if (currentPage) {
-      currentPage.classList.remove('swipe-no-transition');
-    }
-    if (nextPage) {
-      nextPage.classList.remove('swipe-no-transition');
-    }
-    
     isSwiping = false;
     swipeDirection = null;
     currentPage = null;
     nextPage = null;
   }
 
-  // Инициализация
+  function setupTouchHandlers() {
+    if (isIOS) {
+      document.addEventListener('gesturestart', (e) => e.preventDefault());
+      document.addEventListener('gesturechange', (e) => e.preventDefault());
+      document.addEventListener('gestureend', (e) => e.preventDefault());
+    }
+  }
+
+  // ===== ИНИЦИАЛИЗАЦИЯ =====
   function init() {
-    setupViewport();
     setupTouchHandlers();
-    
-    // Добавляем классы страницам
-    ['main-page', 'cabinet-page', 'storage-page'].forEach(pageId => {
-      const page = document.getElementById(pageId);
-      if (page) {
-        page.classList.add('swipe-page');
-      }
-    });
     
     // Назначаем обработчики
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -8176,9 +8202,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
     document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     
-    updateNavigation();
+    // Первоначальное обновление навигации
+    setTimeout(updateNavigationIndicator, 200);
     
-    console.log("✅ Perfect iOS swipe system ready!");
+    console.log("✅ Swipe system with cart and navigation ready!");
   }
 
   // Запуск
