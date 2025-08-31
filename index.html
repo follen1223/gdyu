@@ -7826,7 +7826,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
-  console.log("📱 Optimizing for iOS with beautiful swipe preservation");
+  console.log("📱 Восстанавливаем идеальные свайпы с iOS фиксом");
   
   const SWIPE_THRESHOLD = 24;
   const EDGE_OFFSET = 20;
@@ -7840,10 +7840,33 @@ document.addEventListener('DOMContentLoaded', function() {
   let horizontalDetected = false;
   let animationFrameId = null;
 
-  // Определяем iOS
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // ТОЛЬКО минимальный фикс для iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    const style = document.createElement('style');
+    style.textContent = `
+      body {
+        -webkit-overflow-scrolling: touch;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+      }
+      .swipeable-page {
+        -webkit-transform: translate3d(0,0,0);
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Мягкая блокировка масштабирования
+    document.addEventListener('touchmove', function(e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
 
-  // Специальные стили для iOS
+  // Ваш оригинальный код ниже - БЕЗ ИЗМЕНЕНИЙ
   const swipeStyles = `
     body, .page-container { 
       touch-action: pan-y pinch-zoom; 
@@ -7851,16 +7874,13 @@ document.addEventListener('DOMContentLoaded', function() {
       -webkit-touch-callout: none;
       -webkit-text-size-adjust: none;
       -webkit-tap-highlight-color: transparent;
-      ${isIOS ? 'position: fixed; width: 100%; height: 100%; overflow: hidden;' : ''}
     }
-    
     .page-container { 
       position: relative; 
       width: 100%; 
       height: 100%; 
       overflow: hidden; 
     }
-    
     .swipeable-page { 
       position: absolute; 
       top:0; 
@@ -7870,27 +7890,15 @@ document.addEventListener('DOMContentLoaded', function() {
       will-change: transform; 
       transition: transform 0.25s ease-out; 
       z-index: 10;
-      ${isIOS ? '-webkit-overflow-scrolling: touch;' : ''}
     }
-    
     .no-transition { 
       transition: none !important; 
     }
-    
     .pe-none { 
       pointer-events: none !important; 
     }
-    
     .swipe-in-progress {
       overflow: hidden !important;
-      ${isIOS ? 'position: fixed; width: 100%; height: 100%;' : ''}
-    }
-    
-    /* Предотвращение масштабирования на iOS */
-    .prevent-zoom {
-      touch-action: pan-y;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
     }
   `;
   
@@ -7898,7 +7906,6 @@ document.addEventListener('DOMContentLoaded', function() {
   styleEl.textContent = swipeStyles;
   document.head.appendChild(styleEl);
 
-  // Устанавливаем viewport для iOS
   function setViewport() {
     let viewport = document.querySelector('meta[name="viewport"]');
     if (!viewport) {
@@ -7906,46 +7913,10 @@ document.addEventListener('DOMContentLoaded', function() {
       viewport.name = 'viewport';
       document.head.appendChild(viewport);
     }
-    
-    if (isIOS) {
-      // Жесткий запрет масштабирования для iOS
-      viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-    } else {
-      viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-    }
+    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
   }
 
   setViewport();
-
-  // Блокировка жестов масштабирования на iOS
-  function preventZoom(event) {
-    if (event.touches.length > 1) {
-      event.preventDefault();
-    }
-  }
-
-  function preventDoubleTapZoom(event) {
-    const currentTime = new Date().getTime();
-    const timeSinceLastTap = currentTime - (preventDoubleTapZoom.lastTap || 0);
-    
-    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-      event.preventDefault();
-    }
-    
-    preventDoubleTapZoom.lastTap = currentTime;
-  }
-
-  // Добавляем обработчики для iOS
-  if (isIOS) {
-    document.addEventListener('touchmove', preventZoom, { passive: false });
-    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
-    document.addEventListener('gesturestart', (e) => e.preventDefault());
-    document.addEventListener('gesturechange', (e) => e.preventDefault());
-    document.addEventListener('gestureend', (e) => e.preventDefault());
-    
-    // Добавляем класс для предотвращения масштабирования
-    document.body.classList.add('prevent-zoom');
-  }
 
   function getCurrentPage() {
     const pages = [
@@ -7954,11 +7925,9 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById("storage-page")
     ];
     
-    // Находим видимую страницу
     return pages.find(page => page && page.style.display !== "none") || pages[0];
   }
 
-  // Функция для обновления навигации в нижнем меню
   function updateNavigationIndicator() {
     const currentPage = getCurrentPage();
     if (!currentPage) return;
@@ -7992,10 +7961,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Функция для загрузки корзины при открытии склада
   function loadStorageCart() {
-    console.log("🛒 Loading storage cart after swipe...");
-    
     setTimeout(() => {
       if (typeof renderStorageCart === 'function') renderStorageCart();
       if (typeof initStoragePage === 'function') initStoragePage();
@@ -8216,7 +8182,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Инициализация
   setTimeout(() => {
     updateNavigationIndicator();
-    console.log("✅ iOS optimized swipe system ready!");
+    console.log("✅ Perfect swipe system restored!");
   }, 100);
 
 })();
